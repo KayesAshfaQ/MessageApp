@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/imgProfile"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_margin="8dp"
+        android:src="@drawable/img_placeholder_profile" />
+
+    <ImageView
+        android:id="@+id/imgStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/imgProfile"
+        android:layout_marginStart="-20dp"
+        android:layout_marginTop="-25dp"
+        android:layout_toEndOf="@id/imgProfile"
+        android:visibility="invisible" />
+
+    <TextView
+        android:id="@+id/txtUsername"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="8dp"
+        android:layout_marginTop="16dp"
+        android:layout_toEndOf="@id/imgProfile"
+        android:padding="2dp"
+        android:text="Username" />
+
+    <TextView
+        android:id="@+id/txtLastMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/txtUsername"
+        android:layout_marginLeft="8dp"
+        android:layout_toEndOf="@id/imgProfile"
+        android:padding="2dp"
+        android:text="Last Message"
+        android:visibility="gone" />
+
+</RelativeLayout>

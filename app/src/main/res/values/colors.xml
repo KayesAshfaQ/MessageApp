@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="slate_blue_light">#7C86C1</color>
+    <color name="slate_blue">#5C6BC0</color>
+    <color name="slate_blue_deep">#39489C</color>
+    <color name="blue_jeans_light">#4FC3F7</color>
+    <color name="blue_jeans">#15B2F8</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="beg">#5C6BC0</color>
+
+
+
+</resources>
