@@ -1,24 +1,31 @@
 package com.codingnub.messageapp;
 
+import android.content.Intent;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import android.content.Intent;
-import android.os.Bundle;
-import android.os.Message;
-import android.view.View;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.TextView;
-
 import com.bumptech.glide.Glide;
 import com.codingnub.messageapp.adapter.MessageAdapter;
 import com.codingnub.messageapp.model.Chat;
 import com.codingnub.messageapp.model.User;
+import com.codingnub.messageapp.notification.Data;
+import com.codingnub.messageapp.notification.MyResponse;
+import com.codingnub.messageapp.notification.Sender;
+import com.codingnub.messageapp.notification.Token;
+import com.codingnub.messageapp.remote.ApiClient;
+import com.codingnub.messageapp.remote.ApiInterface;
 import com.codingnub.messageapp.util.Constant;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -28,10 +35,16 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 
 public class MessageActivity extends AppCompatActivity {
 
@@ -41,12 +54,14 @@ public class MessageActivity extends AppCompatActivity {
     private EditText edtTextSend;
     private ImageButton btnSend;
 
-    private String userId;
+    private String receiver;
 
     private FirebaseUser firebaseUser;
     private DatabaseReference databaseReference;
     private ArrayList<Chat> chats;
     private MessageAdapter adapter;
+
+    private boolean notify = false;
 
 
     @Override
@@ -79,11 +94,11 @@ public class MessageActivity extends AppCompatActivity {
 
         chats = new ArrayList<>();
 
-        userId = getIntent().getStringExtra("userId");
+        receiver = getIntent().getStringExtra("userId");
 
 
         firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        databaseReference = FirebaseDatabase.getInstance().getReference("User").child(userId);
+        databaseReference = FirebaseDatabase.getInstance().getReference("User").child(receiver);
 
         databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
@@ -117,6 +132,8 @@ public class MessageActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
+                notify = true;
+
                 String message = edtTextSend.getText().toString();
 
                 if (!message.isEmpty()) {
@@ -138,7 +155,7 @@ public class MessageActivity extends AppCompatActivity {
         HashMap<String, Object> map = new HashMap<>();
 
         map.put("sender", firebaseUser.getUid());
-        map.put("receiver", userId);
+        map.put("receiver", receiver);
         map.put("message", message);
         map.put("status", Constant.STATUS_DELIVERED);
 
@@ -149,14 +166,74 @@ public class MessageActivity extends AppCompatActivity {
                 if (task.isSuccessful()) {
 
                     DatabaseReference chatListRef = FirebaseDatabase.getInstance().getReference("ChatList");
-                    chatListRef.child(firebaseUser.getUid()).child(userId).child("id").setValue(userId);
-                    chatListRef.child(userId).child(firebaseUser.getUid()).child("id").setValue(firebaseUser.getUid());
+                    chatListRef.child(firebaseUser.getUid()).child(receiver).child("id").setValue(receiver);
+                    chatListRef.child(receiver).child(firebaseUser.getUid()).child("id").setValue(firebaseUser.getUid());
 
                 }
 
             }
         });
 
+        reference = FirebaseDatabase.getInstance().getReference("User").child(firebaseUser.getUid());
+        reference.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+
+                String currentUserName = snapshot.getValue(User.class).getName();
+
+                sendNotification(receiver, message, currentUserName);
+                notify = false;
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+
+    }
+
+
+    private void sendNotification(String receiver, String message, String username) {
+
+        DatabaseReference tokenRef = FirebaseDatabase.getInstance().getReference("Tokens");
+        Query query = tokenRef.orderByKey().equalTo(receiver);
+        query.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot dataSnapshot: snapshot.getChildren()){
+                    Token token = dataSnapshot.getValue(Token.class);
+                    Data data = new Data(firebaseUser.getUid(), username+": "+ message, "New Message", receiver, R.mipmap.ic_launcher_round);
+                    Sender sender = new Sender(data, token.getToken());
+
+                    ApiInterface api = ApiClient.getRetrofit().create(ApiInterface.class);
+                    api.sendNotification(sender).enqueue(new Callback<MyResponse>() {
+                        @Override
+                        public void onResponse(Call<MyResponse> call, Response<MyResponse> response) {
+                            if (response.code() == 200){
+                                assert response.body() != null;
+                                if (response.body().success != 1){
+                                    Toast.makeText(MessageActivity.this, "Notification send failed!", Toast.LENGTH_SHORT).show();
+                                }else
+                                    Toast.makeText(MessageActivity.this, "notif. success", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<MyResponse> call, Throwable t) {
+
+                        }
+                    });
+
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
 
     }
 
@@ -168,12 +245,13 @@ public class MessageActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
 
-                for (DataSnapshot s : snapshot.getChildren()){
+                for (DataSnapshot s : snapshot.getChildren()) {
 
                     Chat c = s.getValue(Chat.class);
 
-                    if (c.getReceiver().equals(firebaseUser.getUid()) && c.getSender().equals(userId) ||
-                            c.getSender().equals(firebaseUser.getUid()) && c.getReceiver().equals(userId)){
+                    assert c != null;
+                    if (c.getReceiver().equals(firebaseUser.getUid()) && c.getSender().equals(receiver) ||
+                            c.getSender().equals(firebaseUser.getUid()) && c.getReceiver().equals(receiver)) {
 
                         chats.add(c);
 
@@ -194,6 +272,35 @@ public class MessageActivity extends AppCompatActivity {
             }
         });
 
+    }
+
+
+    private void changeStatus(String status) {
+
+        DatabaseReference reference = FirebaseDatabase.getInstance().getReference("User").child(firebaseUser.getUid());
+
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("status", status);
+
+        reference.updateChildren(map);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        changeStatus(Constant.STATUS_ON);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        changeStatus(Constant.STATUS_OFF);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        changeStatus(Constant.STATUS_OFF);
     }
 
 

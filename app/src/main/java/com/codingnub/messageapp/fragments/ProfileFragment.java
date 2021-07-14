@@ -67,6 +67,14 @@ public class ProfileFragment extends Fragment {
         databaseReference = FirebaseDatabase.getInstance().getReference("User").child(firebaseUser.getUid());
         storageReference = FirebaseStorage.getInstance().getReference("profile");
 
+
+        return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
         //show info
         databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
@@ -76,10 +84,13 @@ public class ProfileFragment extends Fragment {
 
                 username.setText(user.getName());
 
-                if (user.getImgUrl().equals("default")) {
-                    profile_image.setImageResource(R.drawable.img_placeholder_profile);
-                } else {
-                    Glide.with(getContext()).load(user.getImgUrl()).into(profile_image);
+                if (user.getImgUrl() != null) {
+                    if (user.getImgUrl().equals("default")) {
+                        profile_image.setImageResource(R.drawable.img_placeholder_profile);
+                    } else {
+                        if (getContext() != null)
+                            Glide.with(getContext()).load(user.getImgUrl()).into(profile_image);
+                    }
                 }
 
             }
@@ -100,7 +111,6 @@ public class ProfileFragment extends Fragment {
             }
         });
 
-        return view;
     }
 
     private void openImage() {

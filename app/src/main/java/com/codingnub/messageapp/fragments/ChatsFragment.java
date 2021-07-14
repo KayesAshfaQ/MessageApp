@@ -16,6 +16,9 @@ import com.codingnub.messageapp.adapter.UserAdapter;
 import com.codingnub.messageapp.model.Chat;
 import com.codingnub.messageapp.model.ChatList;
 import com.codingnub.messageapp.model.User;
+import com.codingnub.messageapp.notification.Token;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -23,6 +26,7 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.util.ArrayList;
 
@@ -77,9 +81,39 @@ public class ChatsFragment extends Fragment {
             }
         });
 
+        updateToken();
+
 
         return view;
     }
+
+
+    private void updateToken(){
+
+        //getToken
+        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(new OnCompleteListener<String>() {
+            @Override
+            public void onComplete(@NonNull Task<String> task) {
+
+                if (task.isSuccessful()){
+
+                    String s =  task.getResult();
+
+                    if (firebaseUser != null){
+
+                        DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Tokens");
+                        Token token = new Token(s);
+                        databaseReference.child(firebaseUser.getUid()).setValue(token);
+
+                    }
+
+                }
+
+            }
+        });
+
+    }
+
 
     private void chatlist() {
 
